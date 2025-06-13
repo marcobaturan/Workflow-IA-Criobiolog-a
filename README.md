@@ -1,5 +1,3 @@
-# Workflow-IA-Criobiolog-a
-Este workflow automatiza un pipeline de investigación y análisis utilizando múltiples servicios de IA.
 # Workflow n8n: Gemini DeepResearch → Perplexity → NotebookLM → ChatGPT
 
 ## Descripción
@@ -108,10 +106,11 @@ Gemini DeepResearch → Perplexity → NotebookLM → ChatGPT
 
 ## Instalación
 
-1. **Clonar/Importar el workflow**:
+1. **Importar el workflow JSON**:
    ```bash
-   # Si tienes el archivo JSON del workflow
-   # Importarlo desde la interfaz de n8n: Settings → Import from file
+   # Descargar el archivo workflow JSON proporcionado
+   # En n8n: Settings → Import from file → Seleccionar el archivo JSON
+   # O copiar/pegar el contenido JSON directamente en el importador
    ```
 
 2. **Configurar credenciales**:
