@@ -1,0 +1,574 @@
+{
+  "meta": {
+    "instanceId": "research-pipeline-workflow-v1"
+  },
+  "nodes": [
+    {
+      "id": "trigger-node-001",
+      "name": "Start Research Pipeline",
+      "type": "n8n-nodes-base.manualTrigger",
+      "position": [
+        -800,
+        400
+      ],
+      "parameters": {},
+      "typeVersion": 1
+    },
+    {
+      "id": "input-validator-001",
+      "name": "Validate Input Parameters",
+      "type": "n8n-nodes-base.set",
+      "position": [
+        -600,
+        400
+      ],
+      "parameters": {
+        "options": {},
+        "assignments": {
+          "assignments": [
+            {
+              "id": "param-topic",
+              "name": "research_topic",
+              "type": "string",
+              "value": "={{ $json.research_topic || 'Artificial Intelligence in Healthcare' }}"
+            },
+            {
+              "id": "param-depth",
+              "name": "depth_level",
+              "type": "number",
+              "value": "={{ $json.depth_level || 3 }}"
+            },
+            {
+              "id": "param-format",
+              "name": "output_format",
+              "type": "string",
+              "value": "={{ $json.output_format || 'comprehensive_report' }}"
+            },
+            {
+              "id": "timestamp",
+              "name": "timestamp",
+              "type": "string",
+              "value": "={{ new Date().toISOString() }}"
+            }
+          ]
+        }
+      },
+      "typeVersion": 3.4
+    },
+    {
+      "id": "gemini-deepresearch-001",
+      "name": "Gemini DeepResearch",
+      "type": "n8n-nodes-base.httpRequest",
+      "position": [
+        -400,
+        400
+      ],
+      "parameters": {
+        "url": "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-thinking-exp:generateContent",
+        "method": "POST",
+        "options": {
+          "timeout": 120000
+        },
+        "jsonBody": "={\n  \"contents\": [{\n    \"parts\": [{\n      \"text\": \"Conduct a comprehensive deep research analysis on the topic: '{{ $json.research_topic }}'. Depth level: {{ $json.depth_level }}/5. Please provide:\\n\\n1. Executive Summary\\n2. Key findings and insights\\n3. Current trends and developments\\n4. Statistical data and evidence\\n5. Expert opinions and citations\\n6. Future implications\\n7. Research gaps identified\\n\\nFormat the response in structured markdown with clear sections and subsections. Include credible sources and references where possible.\"\n    }]\n  }],\n  \"generationConfig\": {\n    \"temperature\": 0.2,\n    \"topP\": 0.8,\n    \"maxOutputTokens\": 8192\n  }\n}",
+        "sendBody": true,
+        "specifyBody": "json",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "googlePalmApi"
+      },
+      "credentials": {
+        "googlePalmApi": {
+          "id": "gemini-deepresearch-creds",
+          "name": "Gemini DeepResearch API"
+        }
+      },
+      "typeVersion": 4.2
+    },
+    {
+      "id": "extract-gemini-content-001",
+      "name": "Extract Gemini Response",
+      "type": "n8n-nodes-base.set",
+      "position": [
+        -200,
+        400
+      ],
+      "parameters": {
+        "options": {},
+        "assignments": {
+          "assignments": [
+            {
+              "id": "gemini-content",
+              "name": "gemini_research",
+              "type": "string",
+              "value": "={{ $json.candidates[0].content.parts[0].text }}"
+            },
+            {
+              "id": "research-topic",
+              "name": "research_topic",
+              "type": "string",
+              "value": "={{ $('Validate Input Parameters').item.json.research_topic }}"
+            },
+            {
+              "id": "word-count",
+              "name": "gemini_word_count",
+              "type": "number",
+              "value": "={{ $json.candidates[0].content.parts[0].text.split(' ').length }}"
+            }
+          ]
+        }
+      },
+      "typeVersion": 3.4
+    },
+    {
+      "id": "perplexity-enhance-001",
+      "name": "Perplexity Enhancement",
+      "type": "n8n-nodes-base.httpRequest",
+      "position": [
+        0,
+        400
+      ],
+      "parameters": {
+        "url": "https://api.perplexity.ai/chat/completions",
+        "method": "POST",
+        "options": {
+          "timeout": 90000
+        },
+        "jsonBody": "={\n  \"model\": \"llama-3.1-sonar-large-128k-online\",\n  \"messages\": [\n    {\n      \"role\": \"system\",\n      \"content\": \"You are a research analyst tasked with verifying, fact-checking, and enhancing research content with the most current information available online. Provide additional context, recent developments, and cross-reference findings.\"\n    },\n    {\n      \"role\": \"user\",\n      \"content\": \"Please enhance and fact-check this research on '{{ $json.research_topic }}' with current online information:\\n\\n{{ $json.gemini_research }}\\n\\nPlease:\\n1. Verify key claims and statistics\\n2. Add recent developments (2024-2025)\\n3. Provide additional sources and references\\n4. Highlight any contradictions or updates\\n5. Add current market data or trends\\n\\nMaintain the original structure but enhance with verified online information.\"\n    }\n  ],\n  \"temperature\": 0.3,\n  \"max_tokens\": 4000,\n  \"search_domain_filter\": [\"google.com\", \"scholar.google.com\", \"pubmed.ncbi.nlm.nih.gov\", \"arxiv.org\"]\n}",
+        "sendBody": true,
+        "specifyBody": "json",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "httpHeaderAuth"
+      },
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "perplexity-api-creds",
+          "name": "Perplexity API"
+        }
+      },
+      "typeVersion": 4.2
+    },
+    {
+      "id": "extract-perplexity-content-001",
+      "name": "Extract Perplexity Response",
+      "type": "n8n-nodes-base.set",
+      "position": [
+        200,
+        400
+      ],
+      "parameters": {
+        "options": {},
+        "assignments": {
+          "assignments": [
+            {
+              "id": "perplexity-content",
+              "name": "perplexity_enhanced",
+              "type": "string",
+              "value": "={{ $json.choices[0].message.content }}"
+            },
+            {
+              "id": "research-topic",
+              "name": "research_topic",
+              "type": "string",
+              "value": "={{ $('Extract Gemini Response').item.json.research_topic }}"
+            },
+            {
+              "id": "combined-content",
+              "name": "combined_research",
+              "type": "string",
+              "value": "=# Original Deep Research\\n\\n{{ $('Extract Gemini Response').item.json.gemini_research }}\\n\\n---\\n\\n# Enhanced with Current Data\\n\\n{{ $json.choices[0].message.content }}"
+            }
+          ]
+        }
+      },
+      "typeVersion": 3.4
+    },
+    {
+      "id": "notebooklm-structure-001",
+      "name": "NotebookLM Structuring",
+      "type": "n8n-nodes-base.httpRequest",
+      "position": [
+        400,
+        400
+      ],
+      "parameters": {
+        "url": "https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-pro:generateContent",
+        "method": "POST",
+        "options": {
+          "timeout": 90000
+        },
+        "jsonBody": "={\n  \"contents\": [{\n    \"parts\": [{\n      \"text\": \"Acting as NotebookLM, please structure and organize this research content into a comprehensive, well-formatted notebook with the following sections:\\n\\n**CONTENT TO STRUCTURE:**\\n{{ $json.combined_research }}\\n\\n**REQUIRED NOTEBOOK FORMAT:**\\n\\n# Research Notebook: {{ $json.research_topic }}\\n\\n## 📋 Executive Summary\\n- Key takeaways (3-5 bullet points)\\n- Critical findings\\n- Recommended actions\\n\\n## 📊 Research Overview\\n### Methodology\\n### Scope and Limitations\\n### Data Sources\\n\\n## 🔍 Deep Analysis\\n### Core Findings\\n### Statistical Evidence\\n### Expert Insights\\n\\n## 📈 Current Trends & Developments\\n### Recent Updates (2024-2025)\\n### Market Dynamics\\n### Emerging Patterns\\n\\n## 🎯 Key Insights & Implications\\n### Strategic Implications\\n### Future Outlook\\n### Risk Assessment\\n\\n## 📚 References & Sources\\n### Primary Sources\\n### Secondary Sources\\n### Additional Reading\\n\\n## 💡 Research Gaps & Next Steps\\n### Identified Gaps\\n### Recommended Further Research\\n### Action Items\\n\\nFormat with proper markdown, include relevant emojis for sections, and ensure logical flow between sections. Make it publication-ready.\"\n    }]\n  }],\n  \"generationConfig\": {\n    \"temperature\": 0.1,\n    \"topP\": 0.9,\n    \"maxOutputTokens\": 8192\n  }\n}",
+        "sendBody": true,
+        "specifyBody": "json",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "googlePalmApi"
+      },
+      "credentials": {
+        "googlePalmApi": {
+          "id": "notebooklm-creds",
+          "name": "NotebookLM API (Gemini)"
+        }
+      },
+      "typeVersion": 4.2
+    },
+    {
+      "id": "extract-notebooklm-content-001",
+      "name": "Extract NotebookLM Response",
+      "type": "n8n-nodes-base.set",
+      "position": [
+        600,
+        400
+      ],
+      "parameters": {
+        "options": {},
+        "assignments": {
+          "assignments": [
+            {
+              "id": "notebook-content",
+              "name": "structured_notebook",
+              "type": "string",
+              "value": "={{ $json.candidates[0].content.parts[0].text }}"
+            },
+            {
+              "id": "research-topic",
+              "name": "research_topic",
+              "type": "string",
+              "value": "={{ $('Extract Perplexity Response').item.json.research_topic }}"
+            },
+            {
+              "id": "notebook-sections",
+              "name": "section_count",
+              "type": "number",
+              "value": "={{ $json.candidates[0].content.parts[0].text.match(/^##/gm)?.length || 0 }}"
+            }
+          ]
+        }
+      },
+      "typeVersion": 3.4
+    },
+    {
+      "id": "chatgpt-final-analysis-001",
+      "name": "ChatGPT Final Analysis",
+      "type": "n8n-nodes-base.httpRequest",
+      "position": [
+        800,
+        400
+      ],
+      "parameters": {
+        "url": "https://api.openai.com/v1/chat/completions",
+        "method": "POST",
+        "options": {
+          "timeout": 120000
+        },
+        "jsonBody": "={\n  \"model\": \"gpt-4\",\n  \"messages\": [\n    {\n      \"role\": \"system\",\n      \"content\": \"You are a senior research analyst and strategic consultant. Your task is to provide a final, comprehensive analysis and synthesis of research content. Focus on actionable insights, strategic recommendations, and executive-level conclusions.\"\n    },\n    {\n      \"role\": \"user\",\n      \"content\": \"Please provide a final strategic analysis and synthesis of this research notebook on '{{ $json.research_topic }}':\\n\\n{{ $json.structured_notebook }}\\n\\nPlease provide:\\n\\n# EXECUTIVE ANALYSIS & STRATEGIC SYNTHESIS\\n\\n## 🎯 Strategic Summary\\n- Top 3 critical insights\\n- Strategic implications for decision-makers\\n- Competitive advantage opportunities\\n\\n## 📊 Data-Driven Conclusions\\n- Key metrics and their significance\\n- Trend analysis and projections\\n- Risk-opportunity matrix\\n\\n## 💼 Business Recommendations\\n- Immediate actions (0-3 months)\\n- Medium-term strategies (3-12 months)\\n- Long-term positioning (1-3 years)\\n\\n## ⚠️ Critical Success Factors\\n- Key dependencies\\n- Potential roadblocks\\n- Success metrics to monitor\\n\\n## 🔮 Future Outlook\\n- Scenario planning (best/worst/most likely)\\n- Emerging opportunities\\n- Recommended monitoring areas\\n\\n## 📋 Implementation Roadmap\\n- Priority matrix\\n- Resource requirements\\n- Timeline and milestones\\n\\nFormat for C-level presentation with clear, actionable insights.\"\n    }\n  ],\n  \"temperature\": 0.2,\n  \"max_tokens\": 4000,\n  \"top_p\": 0.9\n}",
+        "sendBody": true,
+        "specifyBody": "json",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "httpHeaderAuth"
+      },
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "openai-api-creds",
+          "name": "OpenAI API"
+        }
+      },
+      "typeVersion": 4.2
+    },
+    {
+      "id": "final-output-formatter-001",
+      "name": "Format Final Output",
+      "type": "n8n-nodes-base.set",
+      "position": [
+        1000,
+        400
+      ],
+      "parameters": {
+        "options": {},
+        "assignments": {
+          "assignments": [
+            {
+              "id": "final-report",
+              "name": "final_research_report",
+              "type": "string",
+              "value": "=# COMPREHENSIVE RESEARCH PIPELINE REPORT\\n\\n**Topic:** {{ $('Extract NotebookLM Response').item.json.research_topic }}\\n**Generated:** {{ $('Validate Input Parameters').item.json.timestamp }}\\n**Pipeline:** Gemini DeepResearch → Perplexity → NotebookLM → ChatGPT\\n\\n---\\n\\n{{ $json.choices[0].message.content }}\\n\\n---\\n\\n# DETAILED RESEARCH NOTEBOOK\\n\\n{{ $('Extract NotebookLM Response').item.json.structured_notebook }}\\n\\n---\\n\\n# APPENDIX: SOURCE ANALYSIS\\n\\n## Original Deep Research\\n{{ $('Extract Gemini Response').item.json.gemini_research }}\\n\\n## Enhanced Verification\\n{{ $('Extract Perplexity Response').item.json.perplexity_enhanced }}"
+            },
+            {
+              "id": "metadata",
+              "name": "report_metadata",
+              "type": "object",
+              "value": "={\n  \"topic\": \"{{ $('Extract NotebookLM Response').item.json.research_topic }}\",\n  \"timestamp\": \"{{ $('Validate Input Parameters').item.json.timestamp }}\",\n  \"pipeline_stages\": [\n    \"Gemini DeepResearch\",\n    \"Perplexity Enhancement\",\n    \"NotebookLM Structuring\",\n    \"ChatGPT Analysis\"\n  ],\n  \"word_counts\": {\n    \"gemini\": {{ $('Extract Gemini Response').item.json.gemini_word_count }},\n    \"total_sections\": {{ $('Extract NotebookLM Response').item.json.section_count }}\n  },\n  \"format\": \"{{ $('Validate Input Parameters').item.json.output_format }}\",\n  \"depth_level\": {{ $('Validate Input Parameters').item.json.depth_level }}\n}"
+            },
+            {
+              "id": "export-ready",
+              "name": "export_formats",
+              "type": "object",
+              "value": "={\n  \"markdown\": true,\n  \"html\": false,\n  \"pdf\": false,\n  \"json\": true\n}"
+            }
+          ]
+        }
+      },
+      "typeVersion": 3.4
+    },
+    {
+      "id": "success-notification-001",
+      "name": "Research Pipeline Complete",
+      "type": "n8n-nodes-base.set",
+      "position": [
+        1200,
+        400
+      ],
+      "parameters": {
+        "options": {},
+        "assignments": {
+          "assignments": [
+            {
+              "id": "status",
+              "name": "pipeline_status",
+              "type": "string",
+              "value": "SUCCESS"
+            },
+            {
+              "id": "completion-time",
+              "name": "completion_time",
+              "type": "string",
+              "value": "={{ new Date().toISOString() }}"
+            },
+            {
+              "id": "summary",
+              "name": "execution_summary",
+              "type": "string",
+              "value": "=Research pipeline completed successfully for topic: {{ $('Format Final Output').item.json.report_metadata.topic }}. Report generated with {{ $('Format Final Output').item.json.report_metadata.word_counts.total_sections }} sections using all 4 AI services."
+            }
+          ]
+        }
+      },
+      "typeVersion": 3.4
+    },
+    {
+      "id": "error-handler-001",
+      "name": "Error Handler",
+      "type": "n8n-nodes-base.set",
+      "position": [
+        600,
+        600
+      ],
+      "parameters": {
+        "options": {},
+        "assignments": {
+          "assignments": [
+            {
+              "id": "error-status",
+              "name": "pipeline_status",
+              "type": "string",
+              "value": "ERROR"
+            },
+            {
+              "id": "error-details",
+              "name": "error_details",
+              "type": "string",
+              "value": "={{ $json.error || 'Unknown error occurred in research pipeline' }}"
+            },
+            {
+              "id": "failed-stage",
+              "name": "failed_stage",
+              "type": "string",
+              "value": "={{ $json.node || 'Unknown stage' }}"
+            }
+          ]
+        }
+      },
+      "typeVersion": 3.4
+    },
+    {
+      "id": "sticky-note-intro",
+      "name": "Research Pipeline Info",
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        -1100,
+        200
+      ],
+      "parameters": {
+        "color": 4,
+        "width": 480,
+        "height": 600,
+        "content": "# 🔬 AI Research Pipeline\n\n## Architecture\n**Gemini DeepResearch** → **Perplexity** → **NotebookLM** → **ChatGPT**\n\n## What it does:\n1. **Deep Research**: Gemini conducts comprehensive initial research\n2. **Fact Checking**: Perplexity verifies and enhances with current data\n3. **Structuring**: NotebookLM organizes into professional notebook format\n4. **Strategic Analysis**: ChatGPT provides executive-level insights\n\n## Input Parameters:\n- `research_topic`: Topic to research\n- `depth_level`: 1-5 (complexity level)\n- `output_format`: Report format preference\n\n## Output:\n- Comprehensive research report\n- Executive summary with recommendations\n- Structured notebook with citations\n- Implementation roadmap\n\n## Requirements:\n- Gemini API (DeepResearch)\n- Perplexity API\n- NotebookLM API (Gemini)\n- OpenAI API (ChatGPT)\n\n**Estimated execution time: 3-5 minutes**"
+      },
+      "typeVersion": 1
+    },
+    {
+      "id": "sticky-note-stage1",
+      "name": "Stage 1: Deep Research",
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        -500,
+        200
+      ],
+      "parameters": {
+        "color": 6,
+        "width": 300,
+        "height": 180,
+        "content": "## 🧠 Gemini DeepResearch\n\n- Conducts comprehensive analysis\n- Generates structured research\n- Includes expert insights\n- Provides foundation data\n\n**Model**: gemini-2.0-flash-thinking-exp\n**Output**: 4000-8000 tokens"
+      },
+      "typeVersion": 1
+    },
+    {
+      "id": "sticky-note-stage2",
+      "name": "Stage 2: Fact Enhancement",
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        -100,
+        200
+      ],
+      "parameters": {
+        "color": 7,
+        "width": 300,
+        "height": 180,
+        "content": "## 🔍 Perplexity Enhancement\n\n- Fact-checks initial research\n- Adds current online data\n- Verifies statistics\n- Provides recent developments\n\n**Model**: llama-3.1-sonar-large-128k-online\n**Features**: Real-time web search"
+      },
+      "typeVersion": 1
+    },
+    {
+      "id": "sticky-note-stage3",
+      "name": "Stage 3: Structuring",
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        300,
+        200
+      ],
+      "parameters": {
+        "color": 5,
+        "width": 300,
+        "height": 180,
+        "content": "## 📓 NotebookLM Structuring\n\n- Organizes into notebook format\n- Creates logical sections\n- Adds professional formatting\n- Includes references\n\n**Model**: gemini-1.5-pro\n**Output**: Structured markdown"
+      },
+      "typeVersion": 1
+    },
+    {
+      "id": "sticky-note-stage4",
+      "name": "Stage 4: Strategic Analysis",
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        700,
+        200
+      ],
+      "parameters": {
+        "color": 3,
+        "width": 300,
+        "height": 180,
+        "content": "## 🎯 ChatGPT Analysis\n\n- Provides strategic insights\n- Creates implementation roadmap\n- Generates recommendations\n- Executive-level conclusions\n\n**Model**: gpt-4\n**Focus**: Actionable insights"
+      },
+      "typeVersion": 1
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Start Research Pipeline": {
+      "main": [
+        [
+          {
+            "node": "Validate Input Parameters",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Validate Input Parameters": {
+      "main": [
+        [
+          {
+            "node": "Gemini DeepResearch",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Gemini DeepResearch": {
+      "main": [
+        [
+          {
+            "node": "Extract Gemini Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract Gemini Response": {
+      "main": [
+        [
+          {
+            "node": "Perplexity Enhancement",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Perplexity Enhancement": {
+      "main": [
+        [
+          {
+            "node": "Extract Perplexity Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract Perplexity Response": {
+      "main": [
+        [
+          {
+            "node": "NotebookLM Structuring",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "NotebookLM Structuring": {
+      "main": [
+        [
+          {
+            "node": "Extract NotebookLM Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract NotebookLM Response": {
+      "main": [
+        [
+          {
+            "node": "ChatGPT Final Analysis",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "ChatGPT Final Analysis": {
+      "main": [
+        [
+          {
+            "node": "Format Final Output",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Format Final Output": {
+      "main": [
+        [
+          {
+            "node": "Research Pipeline Complete",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  }
+}
